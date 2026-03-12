@@ -1,0 +1,19 @@
+# --- Maven Artifacts (一定要排除) ---
+target/
+*.jar
+*.war
+
+# --- IDE Settings (建議排除) ---
+.idea/
+*.iml
+out/
+.settings/
+.project
+.classpath
+
+# --- Experiment Result (如果你想讓 GitHub 保持乾淨) ---
+perf_report.csv
+performance_comparison.png
+
+# --- Keep the project core ---
+!pom.xml

@@ -1,0 +1,46 @@
+server:
+  port: 8081
+  tomcat:
+    # 允許同時建立的連線數（預設 8192，但建議明確放大以處理瞬間 2000 VUs）
+    max-connections: 10000
+    # 當執行緒忙碌時，允許在作業系統層級排隊的請求數
+    accept-count: 1000
+    threads:
+      # 實體執行緒。因為我們開啟了虛擬執行緒，這些實體執行緒只負責轉交任務
+      # 200 條已經綽綽有餘，不需要改大
+      max: 200
+
+spring:
+  application:
+    name: lab-mvc-service
+  threads:
+    virtual:
+      enabled: true # 開啟虛擬執行緒 (Java 21)
+
+  datasource:
+    url: jdbc:h2:mem:mvc_db;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    hikari:
+      # [重點] 增加資料庫連線池大小。預設只有 10，面對 2000 併發完全不夠
+      maximum-pool-size: 50
+      # [重點] 增加獲取連線的等待時間（毫秒）。
+      # 如果連線池滿了，虛擬執行緒會在這裡排隊 30 秒才報錯，這能有效防止 0% 成功率
+      connection-timeout: 30000
+      # 池中最小閒置連線
+      minimum-idle: 10
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false # 壓測時關閉 SQL 日誌，否則 IO 會卡在 Console 輸出
+    properties:
+      hibernate:
+        format_sql: false
+
+# 監控 HikariCP 狀態，壓測時可以看到連線池有沒有被榨乾
+logging:
+  level:
+    com.zaxxer.hikari: INFO
+    org.springframework.web: INFO
