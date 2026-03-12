@@ -1,4 +1,5 @@
 server:
+  address: 0.0.0.0
   port: 8081
   tomcat:
     # 允許同時建立的連線數（預設 8192，但建議明確放大以處理瞬間 2000 VUs）
@@ -44,3 +45,12 @@ logging:
   level:
     com.zaxxer.hikari: INFO
     org.springframework.web: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,info,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}

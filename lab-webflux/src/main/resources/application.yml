@@ -1,7 +1,17 @@
 server:
+  address: 0.0.0.0
   port: 8082 # 使用不同 Port，這樣兩台引擎可以同時啟動對決
 spring:
   application:
     name: lab-flux-service
   r2dbc:
     url: r2dbc:h2:mem:///flux_db
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,info,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
