@@ -19,18 +19,17 @@ spring:
       enabled: true # 開啟虛擬執行緒 (Java 21)
 
   datasource:
-    url: jdbc:h2:mem:mvc_db;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
+    # 指向 Docker 裡的 Postgres 容器
+    url: jdbc:postgresql://db:5432/lab_db
+    username: user
+    password: password
+    driver-class-name: org.postgresql.Driver
     hikari:
-      # [重點] 增加資料庫連線池大小。預設只有 10，面對 2000 併發完全不夠
-      maximum-pool-size: 50
-      # [重點] 增加獲取連線的等待時間（毫秒）。
-      # 如果連線池滿了，虛擬執行緒會在這裡排隊 30 秒才報錯，這能有效防止 0% 成功率
+      # [關鍵] 為了看到對決效果，把連線池縮小到與 WebFlux 一致
+      maximum-pool-size: 5
+      # 當 2000 人進來搶 5 個連線時，這裡會開始排隊
       connection-timeout: 30000
-      # 池中最小閒置連線
-      minimum-idle: 10
-      idle-timeout: 600000
-      max-lifetime: 1800000
+      minimum-idle: 5
 
   jpa:
     hibernate:
