@@ -3,5 +3,10 @@ global:
 
 scrape_configs:
   - job_name: 'java-concurrency-lab'
+    metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['lab-flux:8082'] # 直接用 Service Name
+      - targets: 
+          - 'lab-flux:8082'
+          - 'lab-mvc:8081'
+        labels:
+          application: 'concurrency-lab'

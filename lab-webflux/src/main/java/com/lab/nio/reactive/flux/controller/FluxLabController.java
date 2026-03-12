@@ -60,4 +60,10 @@ public class FluxLabController {
         String msg = "你好！這是一個利用 WebFlux 實現的非阻塞打字機效果...";
         return Flux.fromArray(msg.split("")).delayElements(Duration.ofMillis(50));
     }
+
+    @GetMapping("/test")
+    public Mono<String> test() {
+        return Mono.delay(Duration.ofSeconds(1)) // 這是「非阻塞延遲」，執行緒會先去幫別人做事
+                .thenReturn("Flux Done");
+    }
 }

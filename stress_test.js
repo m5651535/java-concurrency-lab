@@ -11,11 +11,11 @@ export let options = {
 
 export default function () {
     // 測試 MVC 模組
-    let resMvc = http.get('http://localhost:8081/mvc/io-bound');
+    let resMvc = http.get('http://localhost:8081/mvc/test');
     check(resMvc, { 'MVC status is 200': (r) => r.status === 200 });
 
     // 測試 WebFlux 模組
-    let resFlux = http.get('http://localhost:8082/flux/chat');
+    let resFlux = http.get('http://localhost:8082/flux/test');
     check(resFlux, { 'Flux status is 200': (r) => r.status === 200 });
 
     sleep(0.1); // 每個虛擬用戶休息 100ms

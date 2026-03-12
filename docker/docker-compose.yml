@@ -3,6 +3,8 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      args:
+        MODULE_NAME: lab-webflux  # <--- 確認這裡沒有拼錯
     container_name: lab-flux-container
     ports:
       - "8082:8082"
@@ -10,6 +12,20 @@ services:
     networks:
       - monitoring-net
 
+  # MVC 服務 (新增這個)
+  lab-mvc:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        MODULE_NAME: lab-mvc     # 傳給 Dockerfile 的變數
+    container_name: lab-mvc-container
+    ports:
+      - "8081:8081"
+      - "5006:5005" # 為了避免衝突，Debug 埠號映射到主機的 5006
+    networks:
+      - monitoring-net
+    
   prometheus:
     image: prom/prometheus
     container_name: prometheus
@@ -27,6 +43,8 @@ services:
       - "3000:3000"
     networks:
       - monitoring-net
+    volumes:
+      - ./grafana_data:/var/lib/grafana  # 將面板存到本地資料夾
 
 networks:
   monitoring-net:

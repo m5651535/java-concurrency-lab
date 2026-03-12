@@ -95,4 +95,10 @@ public class MvcLabController {
         Thread.sleep(1000);
         return "OK";
     }
+
+    @GetMapping("/test")
+    public String test() throws InterruptedException {
+        Thread.sleep(1000); // 這是真的「阻塞」，執行緒會乾等
+        return "MVC Done";
+    }
 }
