@@ -87,6 +87,17 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana  # 將面板存到本地資料夾
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis-lab
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/var/lib/redis
+    command: redis-server --appendonly yes
+    networks:
+      - monitoring-net
+
 networks:
   monitoring-net:
     driver: bridge
@@ -94,3 +105,4 @@ networks:
 volumes:
   pgdata:          # 冒號後面留白代表使用預設設定 (Default Driver)
   grafana_data:    # 如果你也想永久保存 Grafana 面板，可以順便加上這個
+  redis_data:
