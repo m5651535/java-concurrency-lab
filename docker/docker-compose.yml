@@ -11,6 +11,7 @@ services:
     networks:
       - monitoring-net
     volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       # 簡化指令，只要能連上就算數

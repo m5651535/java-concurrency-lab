@@ -13,6 +13,10 @@ spring:
       initial-size: 5
       max-size: 5 # 關鍵！故意設小，模擬高負載下的連線競爭
       max-create-connection-time: 2s
+  data:
+    redis:
+      host: redis-lab  # 👈 關鍵！不能寫 localhost，要寫服務名稱
+      port: 6379
 
 # 監控設定保持不變，這部分你已經改得很完美了
 management:
