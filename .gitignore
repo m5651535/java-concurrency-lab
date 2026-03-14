@@ -1,9 +1,9 @@
-# --- Maven Artifacts (一定要排除) ---
+# --- Maven Artifacts ---
 target/
 *.jar
 *.war
 
-# --- IDE Settings (建議排除) ---
+# --- IDE Settings (補回你的 .idea) ---
 .idea/
 *.iml
 out/
@@ -11,7 +11,13 @@ out/
 .project
 .classpath
 
-# --- Experiment Result (如果你想讓 GitHub 保持乾淨) ---
+# --- Docker Runtime Data (強制忽略) ---
+docker/grafana_data/
+docker/postgres_data/
+docker/redis_data/
+*.log
+
+# --- Experiment Result ---
 perf_report.csv
 performance_comparison.png
 
