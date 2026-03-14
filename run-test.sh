@@ -1,22 +1,27 @@
 #!/bin/bash
 
-# 1. 在根目錄編譯所有模組
 echo "📦 正在編譯 Java 專案..."
 mvn clean package -DskipTests
 
-# 2. 指向 docker 資料夾內的 compose 檔案進行部署
 echo "🚀 正在重啟環境 (含清空數據)..."
-# 使用 -f 指定檔案路徑
 docker-compose -f docker/docker-compose.yml down -v
 docker-compose -f docker/docker-compose.yml up -d --build
 
-# 3. 監控 WebFlux 容器日誌
-echo "⏳ 等待緩存預熱完成訊號..."
-# 注意：容器名稱需與 docker-compose.yml 定義的一致
-(docker logs -f lab-flux-container &) | grep -q "✅ 緩存預熱完成"
+# 核心優化：同時監控兩個容器的日誌
+echo "⏳ 等待雙模組緩存預熱完成 (MVC: 8081 & Flux: 8082)..."
 
-# 4. 偵測到訊號後立刻執行壓測 (假設 k6 腳本在根目錄)
-echo "🔥 偵測到預熱完成！立刻發動 k6 衝擊測試..."
-k6 run stress_test.js
+# 建立一個臨時日誌串流，同時讀取兩個容器
+(docker compose -f docker/docker-compose.yml logs -f lab-flux-container lab-mvc-container &) | grep -q "緩存預熱完成"
 
-echo "✅ 測試流程結束。"
+echo "🔥 雙模組偵測到預熱訊號！準備執行對比測試..."
+sleep 1 # 給 Tomcat/Netty 最後的緩衝時間
+
+# 執行 WebFlux 壓測
+echo "📊 [Step 1] 壓測 WebFlux (8082)..."
+k6 run -e TARGET_PORT=8082 stress_test.js
+
+# 執行 MVC 壓測
+echo "📊 [Step 2] 壓測 MVC (8081)..."
+k6 run -e TARGET_PORT=8081 stress_test.js
+
+echo "✅ 所有對比測試流程結束。"
