@@ -1,12 +1,13 @@
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# 必須要有這一行，Docker 才會接收外面傳進來的變數
 ARG MODULE_NAME
 
-# 這裡路徑不要加斜線在最前面，直接寫變數
-COPY ${MODULE_NAME}/target/*.jar app.jar
+# 只抓取大於 10MB 的 JAR (排除掉幾 KB 的 plain jar)
+# 或者更精確地指定排除 plain
+COPY ${MODULE_NAME}/target/*-SNAPSHOT.jar app.jar
 
 EXPOSE 8081 8082 5005
 
-ENTRYPOINT ["java", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005", "-jar", "app.jar"]
+# 使用 shell 形式，這樣才能正確解析環境變數
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

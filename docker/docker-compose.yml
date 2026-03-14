@@ -8,21 +8,42 @@ services:
       POSTGRES_DB: lab_db
     ports:
       - "5432:5432"
+    networks:
+      - monitoring-net
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # 簡化指令，只要能連上就算數
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user}" ]
+      interval: 3s
+      timeout: 3s
+      retries: 5
 
   lab-flux:
     build:
       context: ..
       dockerfile: Dockerfile
       args:
-        MODULE_NAME: lab-webflux  # <--- 確認這裡沒有拼錯
+        MODULE_NAME: lab-webflux
     container_name: lab-flux-container
     ports:
       - "8082:8082"
-      - "5005:5005" # 讓 IntelliJ 也能從外面連進來
+      - "5005:5005"
     networks:
       - monitoring-net
+    environment:
+      # 1. 暴力破解 8080 問題：直接在環境變數指定 Port
+      - SERVER_PORT=8082
+      - SERVER_ADDRESS=0.0.0.0
+      # 2. 資料庫連線資訊
+      - SPRING_R2DBC_URL=r2dbc:postgresql://db:5432/lab_db
+      - SPRING_R2DBC_USERNAME=user
+      - SPRING_R2DBC_PASSWORD=password
+      # 3. 解決 Alpine DNS 卡頓與 IPv4 優先
+      - JAVA_OPTS=-Djava.net.preferIPv4Stack=true
+    depends_on:
+      db:
+        condition: service_healthy # <--- 這是關鍵！確保 DB 真的 Ready 才開始初始化連線池
 
   # MVC 服務 (新增這個)
   lab-mvc:
@@ -37,7 +58,15 @@ services:
       - "5006:5005" # 為了避免衝突，Debug 埠號映射到主機的 5006
     networks:
       - monitoring-net
-    
+    environment:
+      # 1. 強制覆蓋資料庫 URL，確保它抓到的是 db
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/lab_db
+      # 2. 解決 Alpine/Java DNS 解析問題，強制使用 IPv4
+      - JAVA_OPTS=-Djava.net.preferIPv4Stack=true
+    depends_on:
+      db:
+        condition: service_healthy # 確保 DB 真的活了才開始連
+
   prometheus:
     image: prom/prometheus
     container_name: prometheus
@@ -56,8 +85,12 @@ services:
     networks:
       - monitoring-net
     volumes:
-      - ./grafana_data:/var/lib/grafana  # 將面板存到本地資料夾
+      - grafana_data:/var/lib/grafana  # 將面板存到本地資料夾
 
 networks:
   monitoring-net:
     driver: bridge
+
+volumes:
+  pgdata:          # 冒號後面留白代表使用預設設定 (Default Driver)
+  grafana_data:    # 如果你也想永久保存 Grafana 面板，可以順便加上這個

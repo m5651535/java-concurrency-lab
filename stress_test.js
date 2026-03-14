@@ -3,20 +3,26 @@ import { check, sleep } from 'k6';
 
 export let options = {
     stages: [
-        { duration: '30s', target: 500 }, // 30秒內爬升到 500 VUs
-        { duration: '1m', target: 2000 }, // 維持 1分鐘 2000 VUs
-        { duration: '10s', target: 0 },    // 降溫
+        { duration: '10s', target: 50 },  // 快速爬升
+        { duration: '1m', target: 200 },  // 穩定維持（建議先用 200 測斷路器，太高怕你電腦先卡死）
+        { duration: '10s', target: 0 },   // 降溫
     ],
 };
 
+// 從環境變數讀取目標埠號，預設為 8081
+const port = __ENV.TARGET_PORT || '8081';
+// 根據埠號決定路徑：8081 走 /mvc/user/1，其他走 /flux/user/1
+const path = (port === '8081') ? '/mvc/user/1' : '/flux/user/1';
+const url = `http://localhost:${port}${path}`;
+
 export default function () {
-    // 測試 MVC 模組
-    let resMvc = http.get('http://localhost:8081/mvc/test');
-    check(resMvc, { 'MVC status is 200': (r) => r.status === 200 });
+    let res = http.get(url);
 
-    // 測試 WebFlux 模組
-    let resFlux = http.get('http://localhost:8082/flux/test');
-    check(resFlux, { 'Flux status is 200': (r) => r.status === 200 });
+    // 這裡的 check 會動態顯示是哪個 Port 在跑
+    check(res, {
+        [`Status is 200 (Port ${port})`]: (r) => r.status === 200,
+        'Response time < 500ms': (r) => r.timings.duration < 500,
+    });
 
-    sleep(0.1); // 每個虛擬用戶休息 100ms
+    sleep(0.1);
 }
