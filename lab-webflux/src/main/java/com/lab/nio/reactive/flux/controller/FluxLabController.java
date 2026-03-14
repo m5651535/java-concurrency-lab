@@ -2,10 +2,13 @@ package com.lab.nio.reactive.flux.controller;
 
 import com.lab.nio.reactive.flux.entity.User;
 import com.lab.nio.reactive.flux.repository.UserRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
@@ -65,5 +68,17 @@ public class FluxLabController {
     public Mono<String> test() {
         return Mono.delay(Duration.ofSeconds(1)) // 這是「非阻塞延遲」，執行緒會先去幫別人做事
                 .thenReturn("Flux Done");
+    }
+
+    @GetMapping("/user/{id}")
+    @CircuitBreaker(name = "dbBreaker", fallbackMethod = "dbFallback")
+    public Mono<User> getUser(@PathVariable Long id) {
+        return userRepository.findById(id)
+                .timeout(Duration.ofSeconds(2)); // 只管拋出 TimeoutException，不要 onErrorResume
+    }
+
+    // WebFlux 的 Fallback 必須回傳 Mono/Flux
+    public Mono<User> dbFallback(Long id, Throwable e) {
+        return Mono.just(new User(id, "System Busy (Flux Fallback)", "retry.later@example.com"));
     }
 }

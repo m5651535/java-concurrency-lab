@@ -1,9 +1,13 @@
 package com.lab.nio.reactive.mvc.controller;
 
+import com.lab.nio.reactive.mvc.entity.User;
 import com.lab.nio.reactive.mvc.repository.UserRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -100,5 +104,22 @@ public class MvcLabController {
     public String test() throws InterruptedException {
         Thread.sleep(1000); // 這是真的「阻塞」，執行緒會乾等
         return "MVC Done";
+    }
+
+    @GetMapping("/user/{id}")
+    @CircuitBreaker(name = "dbBreaker", fallbackMethod = "dbFallback")
+    public User getUser(@PathVariable Long id) {
+        // 這是我們原本的 DB 呼叫
+        return userRepository.findById(id).orElseThrow();
+    }
+
+    // Fallback 方法：參數必須包含 Throwable e
+    public User dbFallback(Long id, Throwable e) {
+        // 在這可以回傳快取資料、預設對象，或自定義錯誤
+        User fallbackUser = new User();
+        fallbackUser.setId(id);
+        fallbackUser.setName("System Busy (Fallback)");
+        fallbackUser.setEmail("please.try.later@example.com");
+        return fallbackUser;
     }
 }

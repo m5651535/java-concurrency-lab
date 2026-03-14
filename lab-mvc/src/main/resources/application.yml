@@ -20,7 +20,7 @@ spring:
 
   datasource:
     # 指向 Docker 裡的 Postgres 容器
-    url: jdbc:postgresql://db:5432/lab_db
+    url: jdbc:postgresql://db:5432/lab_db?socketTimeout=2
     username: user
     password: password
     driver-class-name: org.postgresql.Driver
@@ -28,8 +28,13 @@ spring:
       # [關鍵] 為了看到對決效果，把連線池縮小到與 WebFlux 一致
       maximum-pool-size: 5
       # 當 2000 人進來搶 5 個連線時，這裡會開始排隊
-      connection-timeout: 30000
+      connection-timeout: 2000
       minimum-idle: 5
+      initialization-fail-timeout: -1
+      # [新增] 驗證連線的超時時間，設為 1000ms
+      validation-timeout: 1000
+      # [新增] 縮短閒置連線的最大壽命，更快剔除殭屍連線
+      max-lifetime: 30000
 
   jpa:
     hibernate:
@@ -38,6 +43,7 @@ spring:
     properties:
       hibernate:
         format_sql: false
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
 # 監控 HikariCP 狀態，壓測時可以看到連線池有沒有被榨乾
 logging:
@@ -53,3 +59,24 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      dbBreaker:
+        # 當失敗率達到 50% 時，開啟斷路器
+        failure-rate-threshold: 50
+        # 統計失敗率的滑動窗口大小（紀錄最近 10 次呼叫）
+        sliding-window-size: 10
+        # 斷路器開啟後，等待 10 秒再嘗試進入半開狀態
+        wait-duration-in-open-state: 10s
+        # 允許在健康檢查指標中顯示
+        register-health-indicator: true
+        # 自動從開啟切換到半開，不需人工干預
+        automatic-transition-from-open-to-half-open-enabled: true
+
+  timelimiter:
+    instances:
+      dbBreaker:
+        # 硬性規定：任何 DB 查詢超過 2 秒直接視為失敗（防止執行緒被卡死）
+        timeout-duration: 2s

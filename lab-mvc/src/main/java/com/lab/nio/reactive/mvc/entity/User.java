@@ -14,7 +14,7 @@ public class User {
     private String email;
 
     // JPA 規範：必須有一個無參構造函數 (Protected 或 Public)
-    protected User() {}
+    public User() {}
 
     public User(String name, String email) {
         this.name = name;
