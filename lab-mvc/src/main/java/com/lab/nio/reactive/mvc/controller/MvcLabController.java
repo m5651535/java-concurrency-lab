@@ -2,6 +2,7 @@ package com.lab.nio.reactive.mvc.controller;
 
 import com.lab.nio.reactive.mvc.entity.User;
 import com.lab.nio.reactive.mvc.repository.UserRepository;
+import com.lab.nio.reactive.mvc.service.UserService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.slf4j.Logger;
@@ -21,13 +22,15 @@ public class MvcLabController {
     private static final Logger log = LoggerFactory.getLogger(MvcLabController.class);
     // 假設你使用的是 PostgreSQL 或 H2
     private final UserRepository userRepository;
+    private final UserService userService;
 
     // [核心保護] 限制同時存取資料庫的「虛擬執行緒」數量
     // 雖然連線池只有 10 個，我們設 20~30 個許可證作為緩衝排隊
     private final Semaphore dbLimit = new Semaphore(200);
 
-    public MvcLabController(UserRepository userRepository) {
+    public MvcLabController(UserRepository userRepository, UserService userService) {
         this.userRepository = userRepository;
+        this.userService = userService;
     }
 
     // 實驗：傳統阻塞式 (配合 Virtual Threads 觀察)
@@ -110,7 +113,7 @@ public class MvcLabController {
     @CircuitBreaker(name = "dbBreaker", fallbackMethod = "dbFallback")
     public User getUser(@PathVariable Long id) {
         // 這是我們原本的 DB 呼叫
-        return userRepository.findById(id).orElseThrow();
+        return userService.getUserById(id);
     }
 
     // Fallback 方法：參數必須包含 Throwable e
