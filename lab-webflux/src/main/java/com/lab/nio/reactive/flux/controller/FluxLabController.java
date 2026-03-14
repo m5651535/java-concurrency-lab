@@ -2,8 +2,8 @@ package com.lab.nio.reactive.flux.controller;
 
 import com.lab.nio.reactive.flux.entity.User;
 import com.lab.nio.reactive.flux.repository.UserRepository;
+import com.lab.nio.reactive.flux.service.UserService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -22,9 +22,11 @@ import java.time.Duration;
 public class FluxLabController {
     private static final Logger log = LoggerFactory.getLogger(FluxLabController.class);
     private final UserRepository userRepository;
+    private final UserService userService;
 
-    public FluxLabController(UserRepository userRepository) {
+    public FluxLabController(UserRepository userRepository, UserService userService) {
         this.userRepository = userRepository;
+        this.userService = userService;
     }
 
     // 1. 觀察 EventLoop (快速響應)
@@ -73,8 +75,8 @@ public class FluxLabController {
     @GetMapping("/user/{id}")
     @CircuitBreaker(name = "dbBreaker", fallbackMethod = "dbFallback")
     public Mono<User> getUser(@PathVariable Long id) {
-        return userRepository.findById(id)
-                .timeout(Duration.ofSeconds(2)); // 只管拋出 TimeoutException，不要 onErrorResume
+        return userService.getUserById(id)
+                .timeout(Duration.ofSeconds(2));
     }
 
     // WebFlux 的 Fallback 必須回傳 Mono/Flux
