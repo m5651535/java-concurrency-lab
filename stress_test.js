@@ -3,26 +3,29 @@ import { check, sleep } from 'k6';
 
 export let options = {
     stages: [
-        { duration: '10s', target: 50 },  // 快速爬升
-        { duration: '1m', target: 200 },  // 穩定維持（建議先用 200 測斷路器，太高怕你電腦先卡死）
-        { duration: '10s', target: 0 },   // 降溫
+        { duration: '1s', target: 500 },   // 🚀 核心重點：1 秒內強行拉起 500 個虛擬執行緒
+        { duration: '10s', target: 500 },  // 維持壓力，確保大家都擠進那個 200ms 的 Thread.sleep 窗口
+        { duration: '5s', target: 0 },
     ],
 };
 
-// 從環境變數讀取目標埠號，預設為 8081
+// 環境變數讀取
 const port = __ENV.TARGET_PORT || '8081';
-// 根據埠號決定路徑：8081 走 /mvc/user/1，其他走 /flux/user/1
-const path = (port === '8081') ? '/mvc/user/1' : '/flux/user/1';
-const url = `http://localhost:${port}${path}`;
+// TEST_TYPE 可選值: 'simple' (無鎖版) 或 'resilient' (分散式鎖版)
+const testType = __ENV.TEST_TYPE || 'simple';
+// 集中火力攻擊同一個熱點 ID，模擬擊穿場景
+const userId = '1';
+
+const url = `http://localhost:${port}/mvc/user/${userId}/${testType}`;
 
 export default function () {
     let res = http.get(url);
 
-    // 這裡的 check 會動態顯示是哪個 Port 在跑
     check(res, {
-        [`Status is 200 (Port ${port})`]: (r) => r.status === 200,
-        'Response time < 500ms': (r) => r.timings.duration < 500,
+        [`Status is 200 (${testType})`]: (r) => r.status === 200,
+        'Response time < 1000ms': (r) => r.timings.duration < 1000,
     });
 
-    sleep(0.1);
+    // 擊穿實驗通常不加 sleep 或加極短 sleep，模擬最極端的競爭
+    sleep(0.01);
 }
