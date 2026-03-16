@@ -7,7 +7,9 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -120,6 +122,11 @@ public class MvcLabController {
     public User getUserResilient(@PathVariable Long id) {
         // 這是我們原本的 DB 呼叫
         return userService.getUserWithLock(id);
+    }
+
+    @PutMapping("/users/{id}")
+    public void update(@PathVariable Long id, @RequestBody User user) {
+        userService.updateUser(user);
     }
 
     // Fallback 方法：參數必須包含 Throwable e

@@ -33,12 +33,13 @@ public class UserService {
         }
 
         // --- 為了實驗效果，人為製造擊穿窗口 ---
-        try {
-            // 模擬一個稍微慢一點的查詢，讓後面的 1000 個人有機會衝進來
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        // TODO: For experiment simulation
+//        try {
+//            // 模擬一個稍微慢一點的查詢，讓後面的 1000 個人有機會衝進來
+//            Thread.sleep(200);
+//        } catch (InterruptedException e) {
+//            Thread.currentThread().interrupt();
+//        }
         // ---------------------------------
 
         log.warn("🔥 擊穿發生！Cache Miss: {}, fetching from DB", key);
@@ -62,16 +63,16 @@ public class UserService {
         userRepository.save(user);
 
         // 3. 異步延遲雙刪：利用 Java 21 虛擬執行緒，確保最終一致性
-        Thread.ofVirtual().start(() -> {
-            try {
-                // 延遲時間需大於讀寫分離同步延遲，通常 500ms~1s
-                Thread.sleep(500);
-                redisTemplate.delete(key);
-                log.info("🚀 [Delay-Delete] 二次清理完成: {}", key);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
+//        Thread.ofVirtual().start(() -> {
+//            try {
+//                // 延遲時間需大於讀寫分離同步延遲，通常 500ms~1s
+//                Thread.sleep(500);
+//                redisTemplate.delete(key);
+//                log.info("🚀 [Delay-Delete] 二次清理完成: {}", key);
+//            } catch (InterruptedException e) {
+//                Thread.currentThread().interrupt();
+//            }
+//        });
     }
 
     /**
