@@ -17,6 +17,10 @@ spring:
   threads:
     virtual:
       enabled: true # 開啟虛擬執行緒 (Java 21)
+  data:
+    redis:
+      host: redis  # 必須對應 docker-compose 裡的 service 名稱
+      port: 6379
 
   datasource:
     # 指向 Docker 裡的 Postgres 容器
