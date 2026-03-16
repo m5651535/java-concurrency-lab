@@ -4,7 +4,6 @@ import com.lab.nio.reactive.mvc.entity.User;
 import com.lab.nio.reactive.mvc.repository.UserRepository;
 import com.lab.nio.reactive.mvc.service.UserService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -109,11 +108,18 @@ public class MvcLabController {
         return "MVC Done";
     }
 
-    @GetMapping("/user/{id}")
+    @GetMapping("/user/{id}/simple")
     @CircuitBreaker(name = "dbBreaker", fallbackMethod = "dbFallback")
-    public User getUser(@PathVariable Long id) {
+    public User getUserSimple(@PathVariable Long id) {
         // 這是我們原本的 DB 呼叫
-        return userService.getUserById(id);
+        return userService.getUserSimple(id);
+    }
+
+    @GetMapping("/user/{id}/resilient")
+    @CircuitBreaker(name = "dbBreaker", fallbackMethod = "dbFallback")
+    public User getUserResilient(@PathVariable Long id) {
+        // 這是我們原本的 DB 呼叫
+        return userService.getUserWithLock(id);
     }
 
     // Fallback 方法：參數必須包含 Throwable e
