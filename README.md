@@ -145,14 +145,20 @@
 * **分散式鎖的「保鏢機制」**：Resilient 版透過 Redisson 確保只有「一個」請求進入資料庫，將資料庫壓力從 $O(N)$ 降至 $O(1)$。
 * **Max 延遲的 Trade-off**：Resilient 版的最大延遲較高 ($2.57\text{s}$)，主因是「遞迴重試機制」。雖然產生了少數長尾延遲，但換取了對底層資料庫的絕對保護。
 
-### 🚀 如何重現本實驗 (實驗室指南)
+### 🧪 如何重現與驗證緩存擊穿 (Cache Breakdown Replay)
 
-1.  **環境預熱**：確保 `lab-mvc` 以 `maximum-pool-size: 5` 運行。
-2.  **模擬延遲**：在 `getUserSimple` 與 `getUserWithLock` 邏輯中加入 `Thread.sleep(200)`。
-3.  **清空戰場**：執行 `redis-cli FLUSHALL` 確保快取失效。
-4.  **發動攻擊**：
-  * **無鎖測試**：`k6 run -e TARGET_PORT=8081 -e TEST_TYPE=simple stress_test.js`
-  * **有鎖測試**：`k6 run -e TARGET_PORT=8081 -e TEST_TYPE=resilient stress_test.js`
+為了量化分散式鎖的保護力，我們設計了以下對照組實驗：
+
+1. **環境準備 (Pre-setup)**：
+  - 確保 `lab-mvc` 的資料庫連線池限制為 `maximum-pool-size: 5`。
+  - 在邏輯中加入 `Thread.sleep(200)` 模擬資料庫慢查詢。
+2. **重現「擊穿現象」(Reproduction)**：
+  - 執行 `redis-cli FLUSHALL` 確保快取失效。
+  - 對 `/simple` 接口發動壓測：`k6 run -e TARGET_PORT=8081 -e TEST_TYPE=simple stress_test.js`
+  - **預期結果**：DB 連線數瞬間衝高至 $5$ 條滿載，平均延遲因連線排隊而大幅上升。
+3. **驗證「鎖機制保護」(Validation)**：
+  - 再次清空快取後，改對 `/resilient` 接口發動壓測。
+  - **預期結果**：DB 活躍連線數穩定維持在 **$1$** 條，證實 Redisson 分散式鎖成功發揮「保鏢機制」，有效隔離瞬間併發壓力。
 ---
 ## ⚖️ 實驗：快取一致性與延遲雙刪 - 第七階段 (Cache Consistency & Delayed Double Delete)
 
