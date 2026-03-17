@@ -145,8 +145,6 @@
 * **分散式鎖的「保鏢機制」**：Resilient 版透過 Redisson 確保只有「一個」請求進入資料庫，將資料庫壓力從 $O(N)$ 降至 $O(1)$。
 * **Max 延遲的 Trade-off**：Resilient 版的最大延遲較高 ($2.57\text{s}$)，主因是「遞迴重試機制」。雖然產生了少數長尾延遲，但換取了對底層資料庫的絕對保護。
 
----
-
 ### 🚀 如何重現本實驗 (實驗室指南)
 
 1.  **環境預熱**：確保 `lab-mvc` 以 `maximum-pool-size: 5` 運行。
@@ -155,6 +153,42 @@
 4.  **發動攻擊**：
   * **無鎖測試**：`k6 run -e TARGET_PORT=8081 -e TEST_TYPE=simple stress_test.js`
   * **有鎖測試**：`k6 run -e TARGET_PORT=8081 -e TEST_TYPE=resilient stress_test.js`
+---
+## ⚖️ 實驗：快取一致性與延遲雙刪 - 第七階段 (Cache Consistency & Delayed Double Delete)
+
+本階段模擬高併發下的 **「讀寫競爭 (Read-Write Race Condition)」**。我們透過自研的 `app.feature.double-delete-enabled` 開關，對比在沒有與有 **「延遲雙刪」** 機制下，資料庫與快取的數據同步表現。
+
+### 📊 一致性實驗數據對比 (Target: 500 VUs 併發讀寫, DB Write Delay: 500ms)
+
+| 指標 | 關閉雙刪 (Dirty Data 重現) | 開啟雙刪 (Java 21 虛擬執行緒) | 實驗結論 |
+| :--- | :--- | :--- | :--- |
+| **Redis 數據狀態** | **Updated_ghibh (舊)** | **Updated_e6h97a (新) / nil** | **雙刪勝** (成功清理髒數據) |
+| **PostgreSQL 狀態** | Updated_e6h97a (最新) | Updated_e6h97a (最新) | 資料庫皆能正確更新 |
+| **最終一致性** | **❌ 永久不一致** | **✅ 達成最終一致** | **雙刪勝** (解決回填競爭問題) |
+| **主執行緒阻塞時間** | 0ms (非同步) | 0ms (虛擬執行緒非同步) | 皆不影響 API 響應速度 |
+| **額外資源消耗** | 無 | **極低** (Virtual Thread 輕量特性) | **Java 21 勝** (優於傳統執行緒池) |
+
+### 💡 核心架構洞察 (Architectural Insights)
+
+* **髒數據回填的真相**：在「關閉雙刪」實驗中，觀察到 Redis 鎖定在 `Updated_ghibh`。這是因為寫入者刪除快取後，讀取者在寫入者更新 DB 的 500ms 窗口內抓到舊資料並「熱心地」回填 Redis，導致數據永久偏離真實狀態。
+* **Java 21 虛擬執行緒的優勢**：實作非同步延遲任務時，若使用傳統執行緒池，`Thread.sleep(500)` 會佔用寶貴的平台執行緒資源。本專案利用 **Virtual Threads**，讓任務在等待期間「掛起」而不佔用實體執行緒，實現了零成本的併發補償。
+* **Feature Toggle 的實驗價值**：透過 `application.yml` 的功能開關，本專案可隨時切換「重現模式」與「修復模式」，這對於複雜系統的 **可觀測性 (Observability)** 與 **故障排除** 具有極大的實戰意義。
+* **延遲時間的 Trade-off**：延遲時間（500ms）的設定需大於「讀取請求執行時間 + 主從同步延遲」。雖然這不是「強一致性」方案，但在大多數分散式場景中，它是平衡效能與一致性的最優解。
+
+### 🧪 如何重現快取不一致 (Race Condition Replay)
+
+為了驗證「延遲雙刪」的必要性，本專案提供實驗開關：
+
+1. **進入「重現模式」**：
+  - 修改 `application.yml`：`app.feature.double-delete-enabled: false`
+  - 重啟服務。
+2. **執行併發壓測**：
+  - 運行 `k6 run consistency_test.js`。
+  - 觀察 DB 與 Redis 數據，將出現不一致現象（髒數據回填）。
+3. **驗證「修復模式」**：
+  - 將開關設為 `true` 並重啟。
+  - 再次運行壓測，驗證 Redis 最終會被清理乾淨，達成最終一致性。
+
 ---
 
 ## 🚀 快速開始與自動化測試

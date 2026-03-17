@@ -84,3 +84,11 @@ resilience4j:
       dbBreaker:
         # 硬性規定：任何 DB 查詢超過 2 秒直接視為失敗（防止執行緒被卡死）
         timeout-duration: 2s
+
+# 自定義功能開關
+app:
+  feature:
+    # 延遲雙刪開關：true=開啟修復，false=重現髒數據
+    double-delete-enabled: true
+    # 延遲時間建議設為 500ms，需大於資料庫主從同步或讀取請求的執行時間
+    double-delete-delay-ms: 500

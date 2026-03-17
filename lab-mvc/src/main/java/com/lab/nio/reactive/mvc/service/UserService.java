@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +24,12 @@ public class UserService {
 
     private static final String CACHE_KEY_PREFIX = "lab:user:";
     private static final String LOCK_PREFIX = "lock:user:";
+
+    @Value("${app.feature.double-delete-enabled:true}")
+    private boolean isDoubleDeleteEnabled;
+
+    @Value("${app.feature.double-delete-delay-ms:500}")
+    private long doubleDeleteDelay;
 
     public User getUserSimple(Long id) {
         String key = CACHE_KEY_PREFIX + id;
@@ -53,29 +60,32 @@ public class UserService {
     /**
      * 更新用戶：使用延遲雙刪策略
      */
-    public void updateUser(User user) throws InterruptedException {
+    public void updateUser(User user) {
         String key = CACHE_KEY_PREFIX + user.getId();
 
         // 1. 第一次刪除：減少更新期間的髒數據讀取
         redisTemplate.delete(key);
-
-        // 故意稍微卡一下，增加 Race Condition 發生機率
-         Thread.sleep(500);
+        log.info("🛡️ [Phase 1] 第一次快取刪除: {}", key);
 
         // 2. 更新資料庫
         userRepository.save(user);
+        log.info("💾 [Phase 2] 資料庫更新完成: {}", user.getUsername());
 
-        // 3. 異步延遲雙刪：利用 Java 21 虛擬執行緒，確保最終一致性
-//        Thread.ofVirtual().start(() -> {
-//            try {
-//                // 延遲時間需大於讀寫分離同步延遲，通常 500ms~1s
-//                Thread.sleep(500);
-//                redisTemplate.delete(key);
-//                log.info("🚀 [Delay-Delete] 二次清理完成: {}", key);
-//            } catch (InterruptedException e) {
-//                Thread.currentThread().interrupt();
-//            }
-//        });
+        // 3. 延遲雙刪邏輯
+        if (isDoubleDeleteEnabled) {
+            Thread.ofVirtual().start(() -> {
+                try {
+                    Thread.sleep(doubleDeleteDelay);
+                    redisTemplate.delete(key);
+                    log.info("🚀 [Phase 3] 延遲雙刪完成 (Virtual Thread)，已清理髒數據回填: {}", key);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error("❌ 延遲雙刪執行緒中斷", e);
+                }
+            });
+        } else {
+            log.warn("⚠️ [Skip] 延遲雙刪已關閉，系統處於髒數據重現模式");
+        }
     }
 
     /**
