@@ -2,30 +2,36 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 export let options = {
+    // 門檻值：如果 95% 的請求超過 1 秒或失敗率 > 1%，壓測視為不合格
+    thresholds: {
+        http_req_failed: ['rate<0.01'],
+        http_req_duration: ['p(95)<1000'],
+    },
     stages: [
-        { duration: '1s', target: 500 },   // 🚀 核心重點：1 秒內強行拉起 500 個虛擬執行緒
-        { duration: '10s', target: 500 },  // 維持壓力，確保大家都擠進那個 200ms 的 Thread.sleep 窗口
-        { duration: '5s', target: 0 },
+        { duration: '2s', target: 500 },   // 快速拉升
+        { duration: '10s', target: 1000 }, // 提升到 1000 VUs 探測極限
+        { duration: '5s', target: 0 },    // 冷卻
     ],
 };
 
-// 環境變數讀取
 const port = __ENV.TARGET_PORT || '8081';
-// TEST_TYPE 可選值: 'simple' (無鎖版) 或 'resilient' (分散式鎖版)
 const testType = __ENV.TEST_TYPE || 'simple';
-// 集中火力攻擊同一個熱點 ID，模擬擊穿場景
 const userId = '1';
 
-const url = `http://localhost:${port}/mvc/user/${userId}/${testType}`;
+// 自動判定路徑：8081 是 MVC，其餘預設為 WebFlux
+const path = (port === '8081')
+    ? `/mvc/user/${userId}/${testType}`
+    : `/flux/user/${userId}`;
+
+const url = `http://localhost:${port}${path}`;
 
 export default function () {
     let res = http.get(url);
 
     check(res, {
-        [`Status is 200 (${testType})`]: (r) => r.status === 200,
-        'Response time < 1000ms': (r) => r.timings.duration < 1000,
+        'Status is 200': (r) => r.status === 200,
+        'No Cache Breakdown Delay': (r) => r.timings.duration < 300, // 判斷是否被 200ms sleep 卡住
     });
 
-    // 擊穿實驗通常不加 sleep 或加極短 sleep，模擬最極端的競爭
-    sleep(0.01);
+    sleep(0.05); // 稍微留一點呼吸空間，避免本地網路連接埠瞬間耗盡
 }
