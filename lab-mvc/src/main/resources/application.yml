@@ -50,19 +50,43 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 # 監控 HikariCP 狀態，壓測時可以看到連線池有沒有被榨乾
+# 5. 強烈建議：修改日誌格式，讓 TraceID/SpanID 出現在 Console 中
 logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{traceId:-},%X{spanId:-}]"
   level:
     com.zaxxer.hikari: INFO
     org.springframework.web: INFO
+    # 開啟 Tracing 相關日誌有助於除錯
+    io.micrometer.tracing: DEBUG
 
 management:
+  observations:
+    key-values:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: prometheus,health,info,metrics
+        include: prometheus,health,info,metrics,tracing
+  tracing:
+    enabled: true # 確保全局追蹤開關開啟
+    sampling:
+      # 2. 採樣率設定為 1.0 (100%)，實驗環境建議全抓，生產環境通常設 0.1
+      probability: 1.0
+    propagation:
+      # 3. 使用 W3C 標準協定進行 TraceID 傳遞
+      type: w3c
+  otlp:
+    tracing:
+      # 4. 指向 Jaeger 的 OTLP 接收埠 (通常 Docker 內用 4318 是 HTTP)
+      endpoint: http://jaeger:4318/v1/traces
   metrics:
     tags:
       application: ${spring.application.name}
+    data:
+      repository:
+        autotime:
+          enabled: true # 開啟 Repository 層級的自動計時
 
 resilience4j:
   circuitbreaker:
@@ -92,3 +116,11 @@ app:
     double-delete-enabled: true
     # 延遲時間建議設為 500ms，需大於資料庫主從同步或讀取請求的執行時間
     double-delete-delay-ms: 500
+
+# 針對 datasource-micrometer 的配置
+jdbc:
+  datasource-proxy:
+    enabled: true # 必須明確開啟代理，它才會去攔截 SQL
+    query:
+      enable-logging: true
+      log-level: debug

@@ -2,6 +2,8 @@ package com.lab.nio.reactive.mvc.service;
 
 import com.lab.nio.reactive.mvc.entity.User;
 import com.lab.nio.reactive.mvc.repository.UserRepository;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -31,30 +33,35 @@ public class UserService {
     @Value("${app.feature.double-delete-delay-ms:500}")
     private long doubleDeleteDelay;
 
+    private final ObservationRegistry observationRegistry;
+
     public User getUserSimple(Long id) {
-        String key = CACHE_KEY_PREFIX + id;
-        User cachedUser = (User) redisTemplate.opsForValue().get(key);
+        return Observation.createNotStarted("getUserSimple.logic", observationRegistry).observe(() -> {
+            String key = CACHE_KEY_PREFIX + id;
+            User cachedUser = (User) redisTemplate.opsForValue().get(key);
 
-        if (cachedUser != null) {
-            return cachedUser;
-        }
+            if (cachedUser != null) {
+                return cachedUser;
+            }
 
-        // --- 為了實驗效果，人為製造擊穿窗口 ---
-        // TODO: For experiment simulation
+            // --- 為了實驗效果，人為製造擊穿窗口 ---
+            // TODO: For experiment simulation
 //        try {
 //            // 模擬一個稍微慢一點的查詢，讓後面的 1000 個人有機會衝進來
 //            Thread.sleep(200);
 //        } catch (InterruptedException e) {
 //            Thread.currentThread().interrupt();
 //        }
-        // ---------------------------------
+            // ---------------------------------
 
-        log.warn("🔥 擊穿發生！Cache Miss: {}, fetching from DB", key);
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            log.warn("🔥 擊穿發生！Cache Miss: {}, fetching from DB", key);
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        redisTemplate.opsForValue().set(key, user, Duration.ofMinutes(30));
-        return user;
+            redisTemplate.opsForValue().set(key, user, Duration.ofMinutes(30));
+            return user;
+                });
+
     }
 
     /**

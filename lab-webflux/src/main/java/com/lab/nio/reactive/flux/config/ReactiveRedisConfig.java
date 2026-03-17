@@ -1,5 +1,8 @@
 package com.lab.nio.reactive.flux.config;
 
+import io.lettuce.core.resource.ClientResources;
+import io.lettuce.core.tracing.MicrometerTracing;
+import io.micrometer.observation.ObservationRegistry;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
@@ -28,5 +31,12 @@ public class ReactiveRedisConfig {
                 .build();
 
         return new ReactiveRedisTemplate<>(factory, context);
+    }
+
+    @Bean
+    public ClientResources clientResources() {
+        return ClientResources.builder()
+                .tracing(new MicrometerTracing(ObservationRegistry.create(), "redis-lab"))
+                .build();
     }
 }

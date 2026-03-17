@@ -3,7 +3,7 @@ server:
   port: 8082
 spring:
   application:
-    name: concurrency-lab # 建議兩邊標籤一致，用 instance 去拆分，或者你喜歡分開叫也行
+    name: lab-webflux-service
   r2dbc:
     # 指向 docker-compose 裡的 db 服務
     url: r2dbc:postgresql://db:5432/lab_db
@@ -23,10 +23,29 @@ management:
   endpoints:
     web:
       exposure:
-        include: prometheus,health,info,metrics
+        include: prometheus,health,info,metrics,tracing
+  tracing:
+    sampling:
+      # 2. 實驗環境 100% 採樣
+      probability: 1.0
+    propagation:
+      type: w3c
+    enabled: true # 明確開啟追蹤
+  otlp:
+    tracing:
+      # 3. 數據噴發到 Jaeger 的 OTLP 接收器
+      endpoint: http://jaeger:4318/v1/traces
   metrics:
     tags:
       application: ${spring.application.name}
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{traceId:-},%X{spanId:-}]"
+  level:
+    io.micrometer.tracing: DEBUG
+    # WebFlux 的非同步鏈路追蹤日誌
+    io.projectreactor.netty: INFO
 
 resilience4j:
   circuitbreaker:

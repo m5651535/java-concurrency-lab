@@ -42,6 +42,7 @@ services:
       - SPRING_R2DBC_PASSWORD=password
       # 3. 解決 Alpine DNS 卡頓與 IPv4 優先
       - JAVA_OPTS=-Djava.net.preferIPv4Stack=true -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
     depends_on:
       db:
         condition: service_healthy # <--- 這是關鍵！確保 DB 真的 Ready 才開始初始化連線池
@@ -64,6 +65,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/lab_db
       # 2. 解決 Alpine/Java DNS 解析問題，強制使用 IPv4
       - JAVA_OPTS=-Djava.net.preferIPv4Stack=true -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
     depends_on:
       db:
         condition: service_healthy # 確保 DB 真的活了才開始連
@@ -96,6 +98,17 @@ services:
     volumes:
       - redis_data:/var/lib/redis
     command: redis-server --appendonly yes
+    networks:
+      - monitoring-net
+
+  # --- 監控與追蹤 (新增 Jaeger) ---
+  jaeger:
+    image: jaegertracing/all-in-one:1.55
+    container_name: jaeger
+    ports:
+      - "16686:16686" # Jaeger UI 介面
+      - "4317:4317"   # OTLP gRPC 接收埠
+      - "4318:4318"   # OTLP HTTP 接收埠 (Spring Boot 預設使用這個)
     networks:
       - monitoring-net
 
