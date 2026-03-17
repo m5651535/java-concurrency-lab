@@ -53,11 +53,14 @@ public class UserService {
     /**
      * 更新用戶：使用延遲雙刪策略
      */
-    public void updateUser(User user) {
+    public void updateUser(User user) throws InterruptedException {
         String key = CACHE_KEY_PREFIX + user.getId();
 
         // 1. 第一次刪除：減少更新期間的髒數據讀取
         redisTemplate.delete(key);
+
+        // 故意稍微卡一下，增加 Race Condition 發生機率
+         Thread.sleep(500);
 
         // 2. 更新資料庫
         userRepository.save(user);

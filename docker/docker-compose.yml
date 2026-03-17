@@ -41,7 +41,7 @@ services:
       - SPRING_R2DBC_USERNAME=user
       - SPRING_R2DBC_PASSWORD=password
       # 3. 解決 Alpine DNS 卡頓與 IPv4 優先
-      - JAVA_OPTS=-Djava.net.preferIPv4Stack=true
+      - JAVA_OPTS=-Djava.net.preferIPv4Stack=true -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
     depends_on:
       db:
         condition: service_healthy # <--- 這是關鍵！確保 DB 真的 Ready 才開始初始化連線池
@@ -63,7 +63,7 @@ services:
       # 1. 強制覆蓋資料庫 URL，確保它抓到的是 db
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/lab_db
       # 2. 解決 Alpine/Java DNS 解析問題，強制使用 IPv4
-      - JAVA_OPTS=-Djava.net.preferIPv4Stack=true
+      - JAVA_OPTS=-Djava.net.preferIPv4Stack=true -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
     depends_on:
       db:
         condition: service_healthy # 確保 DB 真的活了才開始連

@@ -2,20 +2,17 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 export let options = {
-    parallelism: 10,
     scenarios: {
-        // 寫入者：不斷更新使用者名稱
         writers: {
-            executor: 'constant-vus',
+            executor: 'per-vu-iterations',
             vus: 5,
-            duration: '10s',
+            iterations: 10, // 每個 Writer 只寫 10 次就停止
             exec: 'writeTask',
         },
-        // 讀取者：不斷讀取使用者
         readers: {
             executor: 'constant-vus',
-            vus: 50,
-            duration: '10s',
+            vus: 200,       // 大量讀取者
+            duration: '15s', // 讀取時間比寫入長，確保最後是讀取在洗版
             exec: 'readTask',
         },
     },
@@ -24,13 +21,31 @@ export let options = {
 const BASE_URL = `http://localhost:8081`;
 
 export function writeTask() {
-    let payload = JSON.stringify({ name: "Updated_Name_" + Math.random() });
+    // 確保包含所有必要欄位，避免 PUT 導致資料遺失
+    let payload = JSON.stringify({
+        "id": 1,
+        "username": "Updated_" + Math.random().toString(36).substring(7),
+        "email": "user_1@example.com" // 保持原始 email
+    });
+
     let params = { headers: { 'Content-Type': 'application/json' } };
-    http.put(`${BASE_URL}/mvc/users/1`, payload, params);
-    sleep(0.5); // 每 0.5 秒更新一次
+
+    // 呼叫你的 MVC 更新接口
+    let res = http.put(`${BASE_URL}/mvc/user/1`, payload, params);
+
+    check(res, {
+        'write status is 200': (r) => r.status === 200,
+    });
+
+    // 每次更新後稍微停頓，讓讀取者有機會在「雙刪」的空隙間切入
+    sleep(0.5);
 }
 
 export function readTask() {
-    http.get(`${BASE_URL}/mvc/users/1/resilient`);
+    let res = http.get(`${BASE_URL}/mvc/user/1/simple`);
+
+    check(res, {
+        'read status is 200': (r) => r.status === 200,
+    });
     sleep(0.1);
 }

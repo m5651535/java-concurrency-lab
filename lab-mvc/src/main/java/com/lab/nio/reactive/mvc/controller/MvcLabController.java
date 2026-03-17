@@ -113,7 +113,6 @@ public class MvcLabController {
     @GetMapping("/user/{id}/simple")
     @CircuitBreaker(name = "dbBreaker", fallbackMethod = "dbFallback")
     public User getUserSimple(@PathVariable Long id) {
-        // 這是我們原本的 DB 呼叫
         return userService.getUserSimple(id);
     }
 
@@ -124,8 +123,8 @@ public class MvcLabController {
         return userService.getUserWithLock(id);
     }
 
-    @PutMapping("/users/{id}")
-    public void update(@PathVariable Long id, @RequestBody User user) {
+    @PutMapping("/user/{id}")
+    public void update(@PathVariable Long id, @RequestBody User user) throws InterruptedException {
         userService.updateUser(user);
     }
 
@@ -134,7 +133,7 @@ public class MvcLabController {
         // 在這可以回傳快取資料、預設對象，或自定義錯誤
         User fallbackUser = new User();
         fallbackUser.setId(id);
-        fallbackUser.setName("System Busy (Fallback)");
+        fallbackUser.setUsername("System Busy (Fallback)");
         fallbackUser.setEmail("please.try.later@example.com");
         return fallbackUser;
     }

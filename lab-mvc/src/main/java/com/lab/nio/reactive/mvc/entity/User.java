@@ -10,14 +10,14 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY) // 自動跳號
     private Long id;
 
-    private String name;
+    private String username;
     private String email;
 
     // JPA 規範：必須有一個無參構造函數 (Protected 或 Public)
     public User() {}
 
-    public User(String name, String email) {
-        this.name = name;
+    public User(String username, String email) {
+        this.username = username;
         this.email = email;
     }
 
@@ -29,12 +29,12 @@ public class User {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public String getUsername() {
+        return username;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setUsername(String name) {
+        this.username = name;
     }
 
     public String getEmail() {
