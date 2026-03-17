@@ -175,6 +175,15 @@
 * **Feature Toggle 的實驗價值**：透過 `application.yml` 的功能開關，本專案可隨時切換「重現模式」與「修復模式」，這對於複雜系統的 **可觀測性 (Observability)** 與 **故障排除** 具有極大的實戰意義。
 * **延遲時間的 Trade-off**：延遲時間（500ms）的設定需大於「讀取請求執行時間 + 主從同步延遲」。雖然這不是「強一致性」方案，但在大多數分散式場景中，它是平衡效能與一致性的最優解。
 
+### 🖼️ 實驗視覺證據 (Visual Evidence)
+
+透過 IntelliJ IDEA 的雙視窗比對（左：PostgreSQL / 右：Redis），我們完整紀錄了從數據偏離到韌性修復的過程：
+
+| 1. 初始狀態 (Baseline) | 2. 競爭失效 (Race Condition) | 3. 韌性修復 (Success) |
+| :--- | :--- | :--- |
+| ![初始一致性](./docs/images/consistency-baseline.png) | ![髒數據重現](./docs/images/consistency-failure.png) | ![最終一致性](./docs/images/consistency-success.png) |
+| **觀察：** 系統啟動初期，兩端數據完全同步。 | **觀察：** 偵測到數據偏差！Redis 因回填競爭鎖定在舊版次。 | **觀察：** 延遲雙刪生效，成功清理髒數據並達成一致。 |
+
 ### 🧪 如何重現快取不一致 (Race Condition Replay)
 
 為了驗證「延遲雙刪」的必要性，本專案提供實驗開關：
