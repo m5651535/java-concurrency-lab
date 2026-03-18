@@ -73,14 +73,8 @@ public class FluxLabController {
     }
 
     @GetMapping("/user/{id}")
-    @CircuitBreaker(name = "dbBreaker", fallbackMethod = "dbFallback")
     public Mono<User> getUser(@PathVariable Long id) {
         return userService.getUserById(id)
                 .timeout(Duration.ofSeconds(2));
-    }
-
-    // WebFlux 的 Fallback 必須回傳 Mono/Flux
-    public Mono<User> dbFallback(Long id, Throwable e) {
-        return Mono.just(new User(id, "System Busy (Flux Fallback)", "retry.later@example.com"));
     }
 }
