@@ -231,7 +231,127 @@
 1.  **無鎖模式**: 呈現大規模並發的 `r2dbc query` Span，伴隨嚴重的連線獲取排隊（Connection Acquisition Wait）。
 2.  **鎖強化模式**: 全域僅出現單一資料庫查詢 Span，其餘 99% 的 Trace 在 `tryLock` 成功後直接命中快取並回傳，呈現完美的「漏斗形」流量控制。
 ---
+---
 
+## 🧪 實驗：Circuit Breaker 精準定位與雙層快取架構 - 第九階段 (CB Scoping & L1/L2 Cache)
+
+本階段針對 `lab-webflux` 的快取架構進行深度優化，聚焦兩個核心問題：
+
+1. **Circuit Breaker 誤判根因排查**：原始版本將 `@CircuitBreaker` 標註於 Controller 層，導致分散式鎖的等待時間被誤算為 DB 失敗，在高併發下引發大規模誤熔斷。
+2. **雙層快取 (L1 Caffeine + L2 Redis) 的效益驗證**：在修正 CB 位置後，導入 Caffeine 作為 JVM 本地快取層，量化其在真實冷熱場景下對延遲與吞吐量的影響。
+
+---
+
+### 🔍 問題診斷：Circuit Breaker 的誤判陷阱
+
+透過 `/actuator/prometheus` 觀測到以下異常數據：
+
+```
+resilience4j_circuitbreaker_not_permitted_calls_total  304,983
+resilience4j_circuitbreaker_state{state="half_open"}   1.0
+resilience4j_circuitbreaker_state{state="closed"}      0.0
+```
+
+在總請求數僅 305,405 次的壓測中，**99.9% 的 DB 請求被 Circuit Breaker 直接拒絕**。根因分析如下：
+
+```
+高併發 → 鎖競爭 → Mono.delay(100ms) 遞迴重試
+→ 累積超過 Controller 層的 timeout(2s)
+→ TimeoutException 被 Circuit Breaker 記錄為 DB failure
+→ 10 次滑動窗口內失敗率 > 50% → 熔斷器 OPEN
+→ 後續所有請求走 Fallback，不進快取也不進 DB
+```
+
+**核心問題**：`@CircuitBreaker` 保護的範圍包含了鎖等待邏輯，使其統計的「失敗」並非真正的 DB 故障。
+ 
+---
+
+### 🛠️ 架構重構：職責分離
+
+將 DB 存取抽離至獨立的 `UserDbService`，確保 Circuit Breaker 只保護真正的資料庫呼叫：
+
+**修改前（Circuit Breaker 在 Controller 層）：**
+```java
+// ❌ timeout 包住整個含鎖重試的鏈路
+@CircuitBreaker(name = "dbBreaker", fallbackMethod = "dbFallback")
+public Mono<User> getUser(@PathVariable Long id) {
+    return userService.getUserById(id).timeout(Duration.ofSeconds(2));
+}
+```
+
+**修改後（Circuit Breaker 精準保護 DB 層）：**
+```java
+// ✅ timeout 與 CB 只包住真正的 DB 查詢
+@CircuitBreaker(name = "dbBreaker", fallbackMethod = "fetchFallback")
+public Mono<User> fetchAndCache(Long id, String key) {
+    return userRepository.findById(id)
+            .timeout(Duration.ofSeconds(1))  // 只計算 DB 延遲
+            .flatMap(user -> redisTemplate.opsForValue()
+                    .set(key, user, Duration.ofMinutes(10))
+                    .thenReturn(user));
+}
+```
+ 
+---
+
+### 📊 效能實測數據 (隨機 userId: 1 ~ 10,000，冷啟動)
+
+#### 短時壓測 (stages: 2s→500VU, 10s→1000VU, 5s→0)
+
+| 指標 | 純 Redis (CB 修正前) | 純 Redis (CB 修正後) | L1+L2 (CB 修正後) |
+| :--- | :--- | :--- | :--- |
+| **吞吐量 (RPS)** | 2,677 | 3,950 | 2,870 |
+| **平均延遲 (Avg)** | 166ms | 99ms | 154ms |
+| **p(95) 延遲** | 404ms | 211ms | 404ms |
+| **Cache Breakdown 失敗率** | 11% | 2% | 8% |
+
+> CB 修正後，吞吐量提升 **+47%**，平均延遲下降 **40%**，驗證了誤熔斷是原始版本效能瓶頸的根本原因。
+
+#### 長時壓測 (stages: 10s→500VU, 30s→1000VU, 10s→0，含 Cache Warm-up)
+
+| 指標 | 純 Redis (CB 修正後) | L1+L2 (CB 修正後) | 改善幅度 |
+| :--- | :--- | :--- | :--- |
+| **吞吐量 (RPS)** | 3,872 | **4,335** | **+12%** |
+| **平均延遲 (Avg)** | 93ms | **79ms** | **-15%** |
+| **p(95) 延遲** | 222ms | **201ms** | **-9%** |
+| **Cache Breakdown 失敗率** | 1.4% | **1.1%** | 略優 |
+ 
+---
+
+### 💡 核心架構洞察 (Architectural Insights)
+
+* **Circuit Breaker 的保護邊界決定統計品質**：CB 的滑動窗口統計的是「被保護範圍內的失敗率」。若保護範圍過大，鎖競爭、網路抖動等非 DB 因素都會污染失敗率，導致在系統完全健康時觸發誤熔斷。精準定位是其發揮價值的前提。
+
+* **L1 快取的效益依賴資料集大小**：在 userId 範圍僅 1~100 時，Redis 命中率已接近 100%，Caffeine 省掉的網路 RTT 無法抵銷其帶來的額外 pipeline 複雜度，反而導致效能下降。**唯有在資料集足夠大（本實驗為 10,000 筆）且 cache 充分預熱後，L1 的優勢才能顯現**。
+
+* **冷熱啟動的差異**：冷啟動時（cache 全空），L1+L2 與純 Redis 差距不顯著，因為大多數請求都需要穿透到 DB。隨著 cache 逐漸熱起來，Caffeine 開始大量攔截熱點 key，省掉 Redis 的網路 RTT（實測約 14ms），此時雙層架構的優勢才充分體現。
+
+* **AOP 的作用範圍限制**：`@CircuitBreaker` 依賴 Spring AOP Proxy，**無法攔截同一 Bean 內部的 private method 呼叫**。必須將需要被保護的邏輯抽離至獨立的 Spring Bean，才能確保 AOP 正確生效。
+
+---
+
+### 🏗️ 最終架構：三層防禦的請求流
+
+```
+請求進入
+   │
+   ▼
+[L1] Caffeine (JVM 本地，~0ms)
+   │ miss
+   ▼
+[L2] Redis (網路快取，~1-5ms)
+   │ miss
+   ▼
+[分散式鎖] Redisson RLockReactive
+   │ 搶到鎖 → Double Check L1/L2
+   │ 未搶到 → Jitter Retry (100~150ms)
+   ▼
+[DB] UserDbService.fetchAndCache()
+   └─ @CircuitBreaker (dbBreaker)
+   └─ .timeout(1s)
+   └─ 寫入 L2 Redis + 回填 L1 Caffeine
+ ```
+---
 ## 🚀 快速開始與自動化測試
 
 本專案提供一鍵式自動化腳本，可自動完成編譯、部署、預熱監控與兩大架構的效能對比。

@@ -6,5 +6,4 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface UserRepository extends ReactiveCrudRepository<User, Long> {
-    // 這裡的方法是非阻塞的，回傳 Mono<User> 或 Flux<User>
 }
