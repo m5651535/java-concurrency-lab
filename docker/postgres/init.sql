@@ -8,4 +8,4 @@ CREATE TABLE IF NOT EXISTS users (
 -- 預填 100 筆測試資料，確保預熱機制有東西跑
 INSERT INTO users (id, username, email)
 SELECT i, 'user_' || i, 'user_' || i || '@example.com'
-FROM generate_series(1, 100) AS i;
+FROM generate_series(1, 10000) AS i;

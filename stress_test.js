@@ -8,9 +8,9 @@ export let options = {
         http_req_duration: ['p(95)<1000'],
     },
     stages: [
-        { duration: '2s', target: 500 },   // 快速拉升
-        { duration: '10s', target: 1000 }, // 提升到 1000 VUs 探測極限
-        { duration: '5s', target: 0 },    // 冷卻
+        { duration: '10s', target: 500 },
+        { duration: '30s', target: 1000 },  // 拉長讓 cache 熱起來
+        { duration: '10s', target: 0 },
     ],
 };
 
@@ -26,12 +26,16 @@ const path = (port === '8081')
 const url = `http://localhost:${port}${path}`;
 
 export default function () {
+    const userId = Math.floor(Math.random() * 10000) + 1;  // 1~10000 隨機
+    const path = `/flux/user/${userId}`;
+    const url = `http://localhost:${port}${path}`;
+
     let res = http.get(url);
 
     check(res, {
         'Status is 200': (r) => r.status === 200,
-        'No Cache Breakdown Delay': (r) => r.timings.duration < 300, // 判斷是否被 200ms sleep 卡住
+        'No Cache Breakdown Delay': (r) => r.timings.duration < 300,
     });
 
-    sleep(0.05); // 稍微留一點呼吸空間，避免本地網路連接埠瞬間耗盡
+    sleep(0.05);
 }

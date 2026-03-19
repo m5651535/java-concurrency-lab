@@ -1,5 +1,6 @@
 package com.lab.nio.reactive.flux.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.lab.nio.reactive.flux.entity.User;
 import com.lab.nio.reactive.flux.repository.UserRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -16,11 +17,14 @@ public class UserDbService {
 
     private final UserRepository userRepository;
     private final ReactiveRedisTemplate<String, Object> redisTemplate;
+    private final Cache<String, User> caffeineCache;
 
     public UserDbService(UserRepository userRepository,
-                         ReactiveRedisTemplate<String, Object> redisTemplate) {
+                         ReactiveRedisTemplate<String, Object> redisTemplate,
+                         Cache<String, User> caffeineCache) {
         this.userRepository = userRepository;
         this.redisTemplate = redisTemplate;
+        this.caffeineCache = caffeineCache;
     }
 
     @CircuitBreaker(name = "dbBreaker", fallbackMethod = "fetchFallback")
@@ -32,7 +36,8 @@ public class UserDbService {
                 ))
                 .flatMap(user ->
                         redisTemplate.opsForValue()
-                                .set(key, user, Duration.ofMinutes(10))
+                                .set(key, user, Duration.ofMinutes(10))  // 寫入 L2
+                                .doOnSuccess(v -> caffeineCache.put(key, user)) // 順手填入 L1
                                 .thenReturn(user)
                 );
     }
