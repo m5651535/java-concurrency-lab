@@ -58,7 +58,7 @@ jobs:
             --max-instances=3
             --add-cloudsql-instances=${{ env.CLOUD_SQL_CONNECTION }}
             --vpc-connector=vpc-con
-            --set-env-vars=SPRING_PROFILES_ACTIVE=cloudrun,SERVER_PORT=8080,REDIS_HOST=${{ secrets.REDIS_HOST }},CLOUD_SQL_INSTANCE=notification-system-lab:asia-east1:concurrency-lab-db
+            --set-env-vars=SPRING_PROFILES_ACTIVE=cloudrun,SERVER_PORT=8080,REDIS_HOST=${{ secrets.REDIS_HOST }},CLOUD_SQL_INSTANCE=notification-system-lab:asia-east1:concurrency-lab-db,DB_USERNAME=${{ secrets.DB_USERNAME }},DB_PASSWORD=${{ secrets.DB_PASSWORD }}
 
   deploy-webflux:
     name: Deploy lab-webflux
@@ -106,4 +106,4 @@ jobs:
             --max-instances=3
             --add-cloudsql-instances=${{ env.CLOUD_SQL_CONNECTION }}
             --vpc-connector=vpc-con
-            --set-env-vars=SPRING_PROFILES_ACTIVE=cloudrun,SERVER_PORT=8080,REDIS_HOST=${{ secrets.REDIS_HOST }},CLOUD_SQL_INSTANCE=notification-system-lab:asia-east1:concurrency-lab-db
+            --set-env-vars=SPRING_PROFILES_ACTIVE=cloudrun,SERVER_PORT=8080,REDIS_HOST=${{ secrets.REDIS_HOST }},CLOUD_SQL_INSTANCE=notification-system-lab:asia-east1:concurrency-lab-db,DB_USERNAME=${{ secrets.DB_USERNAME }},DB_PASSWORD=${{ secrets.DB_PASSWORD }}
