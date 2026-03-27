@@ -4,6 +4,37 @@
 
 ---
 
+## 🌐 雲端部署 (GCP Cloud Run)
+
+### 雲端架構
+- **Compute**: GCP Cloud Run (Serverless, Scale-to-Zero, 需驗證存取)
+- **Database**: GCP Cloud SQL (PostgreSQL 15, db-f1-micro)
+- **Cache**: GCP Memorystore (Redis 7.0, 1GB)
+- **Networking**: Serverless VPC Access Connector (私有網路通訊)
+- **Registry**: GCP Artifact Registry
+- **IaC**: Terraform (一鍵建立所有 GCP 資源，詳見 terraform/)
+- **CI/CD**: GitHub Actions (push to main 自動觸發建置與部署)
+
+### 健康狀態驗證
+兩個服務皆已成功部署並通過健康檢查：
+
+lab-mvc (Virtual Threads):
+{"status":"UP","components":{"db":{"status":"UP"},"redis":{"status":"UP"}}}
+
+lab-webflux (Reactive):
+{"status":"UP","components":{"r2dbc":{"status":"UP"},"redis":{"status":"UP"}}}
+
+### 本地開發 vs 雲端部署對照
+| | 本地 (Docker Compose) | 雲端 (Cloud Run) |
+|:---|:---|:---|
+| **DB** | PostgreSQL container | Cloud SQL + Socket Factory |
+| **Redis** | Redis container | Memorystore + VPC Connector |
+| **Tracing** | Jaeger (localhost:16686) | 已停用 |
+| **啟動方式** | ./run-test.sh | git push to main |
+| **存取控制** | 無限制 | IAM 驗證 |
+
+---
+
 ## 🏗️ 專案架構 (Multi-Module)
 
 本專案採用 Maven 多模組架構，確保實驗變因完全隔離：

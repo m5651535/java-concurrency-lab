@@ -51,7 +51,7 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/lab-mvc:${{ github.sha }}
           flags: |
-            --allow-unauthenticated
+            --no-allow-unauthenticated
             --memory=512Mi
             --cpu=1
             --min-instances=0
@@ -99,7 +99,7 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/lab-webflux:${{ github.sha }}
           flags: |
-            --allow-unauthenticated
+            --no-allow-unauthenticated
             --memory=512Mi
             --cpu=1
             --min-instances=0
