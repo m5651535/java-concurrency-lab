@@ -7,17 +7,13 @@ spring:
       on-profile: cloudrun
 
   datasource:
-    url: jdbc:postgresql:///lab_db
+    url: jdbc:postgresql:///${DB_NAME:lab_db}?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${CLOUD_SQL_INSTANCE}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 5
       connection-timeout: 2000
       minimum-idle: 2
-      data-source-properties:
-        cloudSqlInstance: notification-system-lab:asia-east1:concurrency-lab-db
-        socketFactory: com.google.cloud.sql.postgres.SocketFactory
-        enableIamAuth: false
 
   data:
     redis:

@@ -81,8 +81,9 @@
 
         <dependency>
             <groupId>com.google.cloud.sql</groupId>
-            <artifactId>postgres-socket-factory</artifactId>
-            <version>1.15.2</version>
+            <artifactId>cloud-sql-connector-r2dbc-postgres</artifactId>
+            <version>1.19.0</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 </project>
