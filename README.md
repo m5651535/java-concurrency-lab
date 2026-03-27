@@ -64,6 +64,19 @@ lab-webflux (Reactive):
 
 ---
 
+## 📋 架構決策記錄 (ADR)
+
+關鍵技術選型的決策理由與 trade-off 分析，詳見 [docs/adr/](docs/adr/)。
+
+| 編號 | 決策 | 結論 |
+|:---|:---|:---|
+| [ADR-001](docs/adr/ADR-001-distributed-lock.md) | 分散式鎖：Redisson vs 自實作 | 選 Redisson，Watchdog 機制避免競態條件 |
+| [ADR-002](docs/adr/ADR-002-l1-l2-cache.md) | 雙層快取：Caffeine + Redis | 資料集 > 10,000 筆才有顯著效益 |
+| [ADR-003](docs/adr/ADR-003-circuit-breaker-scope.md) | Circuit Breaker 保護範圍 | 必須精準定位到 DB 層，不含鎖等待 |
+| [ADR-004](docs/adr/ADR-004-virtual-threads-vs-webflux.md) | Virtual Threads vs WebFlux | 新專案優先選 Virtual Threads |
+
+---
+
 ## 📊 效能實測數據 - 第一階段 (Performance Benchmarks)
 
 我們模擬了典型的 **IO-Bound** 任務（1 秒的網路/資料庫延遲），並對兩個模組發動了 **2,000 VUs (Virtual Users)** 的高併發加壓測試。
