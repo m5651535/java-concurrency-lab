@@ -82,8 +82,12 @@
         <dependency>
             <groupId>com.google.cloud.sql</groupId>
             <artifactId>cloud-sql-connector-r2dbc-postgres</artifactId>
-            <version>1.19.0</version>
-            <scope>compile</scope>
+            <version>1.15.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>spring-cloud-gcp-starter</artifactId>
         </dependency>
     </dependencies>
 </project>

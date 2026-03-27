@@ -4,8 +4,12 @@ spring:
     activate:
       on-profile: cloudrun
 
+  cloud:
+    gcp:
+      project-id: notification-system-lab
+
   r2dbc:
-    url: r2dbc:gcp:postgres://${DB_USERNAME}:${DB_PASSWORD}@${CLOUD_SQL_INSTANCE}/lab_db
+    url: r2dbc:postgresql:///${CLOUD_SQL_INSTANCE}/lab_db?socketFactory=com.google.cloud.sql.postgres.SocketFactory
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     pool:
