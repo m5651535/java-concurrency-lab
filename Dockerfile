@@ -3,9 +3,9 @@ WORKDIR /app
 
 ARG MODULE_NAME
 
-# 只抓取大於 10MB 的 JAR (排除掉幾 KB 的 plain jar)
-# 或者更精確地指定排除 plain
-COPY ${MODULE_NAME}/target/*-SNAPSHOT.jar app.jar
+# 複製指定模組的 JAR 檔案到容器中
+# 這裡使用通配符來匹配 Maven 產出的 fat jar，並確保排除 plain jar
+COPY ${MODULE_NAME}/target/${MODULE_NAME}-*.jar app.jar
 
 EXPOSE 8081 8082 5005
 

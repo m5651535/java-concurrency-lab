@@ -1,0 +1,36 @@
+# Cloud Run 環境專用設定
+# DB 透過 Cloud SQL Connector socket 連線，不使用 IP
+# Redis 透過 VPC Connector 連到 Memorystore 私有 IP
+spring:
+  config:
+    activate:
+      on-profile: cloudrun
+
+  datasource:
+    url: jdbc:postgresql:///lab_db?cloudSqlInstance=notification-system-lab:asia-east1:concurrency-lab-db&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 2000
+      minimum-idle: 2
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: 6379
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+management:
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+
+server:
+  port: 8080

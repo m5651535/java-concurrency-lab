@@ -1,0 +1,27 @@
+# Cloud Run 環境專用設定
+spring:
+  config:
+    activate:
+      on-profile: cloudrun
+
+  r2dbc:
+    url: r2dbc:postgresql:///lab_db?cloudSqlInstance=notification-system-lab:asia-east1:concurrency-lab-db&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    pool:
+      initial-size: 2
+      max-size: 5
+      max-create-connection-time: 2s
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: 6379
+
+management:
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+
+server:
+  port: 8080
