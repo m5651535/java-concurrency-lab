@@ -34,6 +34,15 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 management:
+  endpoint:
+    health:
+      show-details: always
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    enabled: false
   otlp:
     tracing:
       endpoint: http://localhost:4318/v1/traces
